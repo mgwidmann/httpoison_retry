@@ -29,10 +29,12 @@ defmodule HTTPoison.Retry do
       ], unquote(opts))
       case attempt_fn.() do
         # Error conditions
-        {:error, %HTTPoison.Error{id: nil, reason: :nxdomain}} = response ->
+        {:error, %HTTPoison.Error{id: nil, reason: :nxdomain}} ->
+          HTTPoison.Retry.next_attempt(attempt_fn, opts)
+        {:error, %HTTPoison.Error{id: nil, reason: :timeout}} ->
           HTTPoison.Retry.next_attempt(attempt_fn, opts)
         # OK conditions
-        {:ok, %HTTPoison.Response{status_code: 500}} = response ->
+        {:ok, %HTTPoison.Response{status_code: 500}} ->
           HTTPoison.Retry.next_attempt(attempt_fn, opts)
         {:ok, %HTTPoison.Response{status_code: 404}} = response ->
           if Keyword.get(opts, :include_404s) do
