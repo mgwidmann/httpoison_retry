@@ -32,3 +32,15 @@ HTTPoison.get("https://www.example.com")
 # Your function which will handle the response after success or failed retry
 |> handle_response()
 ```
+
+## Gotchas
+
+Don't forget that the `autoretry/2` call could take a substaintial amount of time to complete. That means usage in the following areas are potential problems:
+
+  * Within a plug/phoenix request
+  * Within any `GenServer` process
+    * Sleeping for a considerable amount of time leaves the process unable to answer other callers and will result in cascading timeouts of other processes
+  * Any Task/Agent call that has a timeout period (i.e. `Task.await/1`)
+    * Same reason as `GenServer`s
+  * Tests
+    * Tests should not be making live HTTP calls anyhow, but if they do this could potentially go over the default 60 seconds in ExUnit.
