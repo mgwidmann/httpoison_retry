@@ -32,7 +32,7 @@ defmodule HTTPoisonRetry.Mixfile do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:httpoison, "~> 0.13"},
+      {:httpoison, "~> 0.13 or ~> 1.0"},
       # Docs
       {:ex_doc, "~> 0.18", only: :dev},
       {:earmark, "~> 1.2", only: :dev},
