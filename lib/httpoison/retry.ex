@@ -37,6 +37,7 @@ defmodule HTTPoison.Retry do
         max_attempts: Application.get_env(:httpoison_retry, :max_attempts) || unquote(@max_attempts),
         wait: Application.get_env(:httpoison_retry, :wait) || unquote(@reattempt_wait),
         include_404s: Application.get_env(:httpoison_retry, :include_404s) || false,
+        retry_all_errors: Application.get_env(:httpoison_retry, :retry_all_errors) || false,
         attempt: 1
       ], unquote(opts))
       case attempt_fn.() do
@@ -45,6 +46,12 @@ defmodule HTTPoison.Retry do
           HTTPoison.Retry.next_attempt(attempt_fn, opts)
         {:error, %HTTPoison.Error{id: nil, reason: :timeout}} ->
           HTTPoison.Retry.next_attempt(attempt_fn, opts)
+        {:error, %HTTPoison.Error{id: nil, reason: _}} = response ->
+          if Keyword.get(opts, :retry_all_errors) do
+            HTTPoison.Retry.next_attempt(attempt_fn, opts)
+          else
+            response
+          end
         # OK conditions
         {:ok, %HTTPoison.Response{status_code: 500}} ->
           HTTPoison.Retry.next_attempt(attempt_fn, opts)
