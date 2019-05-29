@@ -37,9 +37,9 @@ defmodule HTTPoison.RetryTest do
     {:ok, agent} = Agent.start fn -> 0 end
     request = fn ->
       Agent.update agent, fn(i) -> i + 1 end
-      {:error, %HTTPoison.Error{id: nil, reason: :closed}}
+      {:error, %HTTPoison.Error{id: nil, reason: :other}}
     end
-    assert {:error, %HTTPoison.Error{id: nil, reason: :closed}} = autoretry(request.())
+    assert {:error, %HTTPoison.Error{id: nil, reason: :other}} = autoretry(request.())
     assert 1 = Agent.get(agent, &(&1))
   end
 
@@ -47,9 +47,9 @@ defmodule HTTPoison.RetryTest do
     {:ok, agent} = Agent.start fn -> 0 end
     request = fn ->
       Agent.update agent, fn(i) -> i + 1 end
-      {:error, %HTTPoison.Error{id: nil, reason: :closed}}
+      {:error, %HTTPoison.Error{id: nil, reason: :other}}
     end
-    assert {:error, %HTTPoison.Error{id: nil, reason: :closed}} = autoretry(request.(), retry_unknown_errors: true)
+    assert {:error, %HTTPoison.Error{id: nil, reason: :other}} = autoretry(request.(), retry_unknown_errors: true)
     assert 5 = Agent.get(agent, &(&1))
   end
 
