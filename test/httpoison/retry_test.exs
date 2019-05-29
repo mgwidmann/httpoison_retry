@@ -33,6 +33,26 @@ defmodule HTTPoison.RetryTest do
     assert 5 = Agent.get(agent, &(&1))
   end
 
+  test "errors other than nxdomain/timeout by default" do
+    {:ok, agent} = Agent.start fn -> 0 end
+    request = fn ->
+      Agent.update agent, fn(i) -> i + 1 end
+      {:error, %HTTPoison.Error{id: nil, reason: :closed}}
+    end
+    assert {:error, %HTTPoison.Error{id: nil, reason: :closed}} = autoretry(request.())
+    assert 1 = Agent.get(agent, &(&1))
+  end
+
+  test "include other error types" do
+    {:ok, agent} = Agent.start fn -> 0 end
+    request = fn ->
+      Agent.update agent, fn(i) -> i + 1 end
+      {:error, %HTTPoison.Error{id: nil, reason: :closed}}
+    end
+    assert {:error, %HTTPoison.Error{id: nil, reason: :closed}} = autoretry(request.(), retry_unknown_errors: true)
+    assert 5 = Agent.get(agent, &(&1))
+  end
+
   test "404s by default" do
     {:ok, agent} = Agent.start fn -> 0 end
     request = fn ->
