@@ -45,6 +45,8 @@ defmodule HTTPoison.Retry do
           HTTPoison.Retry.next_attempt(attempt_fn, opts)
         {:error, %HTTPoison.Error{id: nil, reason: :timeout}} ->
           HTTPoison.Retry.next_attempt(attempt_fn, opts)
+        {:error, %HTTPoison.Error{id: nil, reason: :closed}} ->
+          HTTPoison.Retry.next_attempt(attempt_fn, opts)
         # OK conditions
         {:ok, %HTTPoison.Response{status_code: 500}} ->
           HTTPoison.Retry.next_attempt(attempt_fn, opts)
