@@ -3,6 +3,8 @@ defmodule HTTPoison.Retry do
   See `#{__MODULE__}.autoretry/2`
   """
 
+  use Bitwise, only_operators: true
+
   @max_attempts 5
   @reattempt_wait 15_000
   @doc """
@@ -67,7 +69,8 @@ defmodule HTTPoison.Retry do
   end
 
   defp next_attempt(attempt_fn, attempt, opts) do
-    Process.sleep(opts[:wait])
+    do_wait(opts[:wait], attempt)
+
     if opts[:max_attempts] == :infinity || attempt < opts[:max_attempts] - 1 do
       do_autoretry(attempt_fn, attempt + 1, opts)
     else
@@ -75,10 +78,16 @@ defmodule HTTPoison.Retry do
     end
   end
 
+  def do_wait(n, _) when is_integer(n), do: Process.sleep(n)
+  def do_wait(:exponential, attempt) do
+    # This has the potential to sleep for very long times, and should be
+    # capped, or the maximum should be controllable
+    Process.sleep(:random.uniform(1 <<< attempt) * 1000)
+  end
+
   defp default_opts(), do: [
     max_attempts: @max_attempts,
     wait: @reattempt_wait,
-    # Rename retry_on_all_errors?
     retry_unknown_errors: false,
     error_reasons: [:nxdomain, :timeout, :closed],
     status_codes: [500],
