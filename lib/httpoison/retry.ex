@@ -32,50 +32,55 @@ defmodule HTTPoison.Retry do
   """
   defmacro autoretry(attempt, opts \\ []) do
     quote location: :keep, generated: true do
-      attempt_fn = fn -> unquote(attempt) end
-      opts = Keyword.merge([
-        max_attempts: Application.get_env(:httpoison_retry, :max_attempts) || unquote(@max_attempts),
-        wait: Application.get_env(:httpoison_retry, :wait) || unquote(@reattempt_wait),
-        include_404s: Application.get_env(:httpoison_retry, :include_404s) || false,
-        retry_unknown_errors: Application.get_env(:httpoison_retry, :retry_unknown_errors) || false,
-        attempt: 1
-      ], unquote(opts))
-      case attempt_fn.() do
-        # Error conditions
-        {:error, %HTTPoison.Error{id: nil, reason: :nxdomain}} ->
-          HTTPoison.Retry.next_attempt(attempt_fn, opts)
-        {:error, %HTTPoison.Error{id: nil, reason: :timeout}} ->
-          HTTPoison.Retry.next_attempt(attempt_fn, opts)
-        {:error, %HTTPoison.Error{id: nil, reason: :closed}} ->
-          HTTPoison.Retry.next_attempt(attempt_fn, opts)
-        {:error, %HTTPoison.Error{id: nil, reason: _}} = response ->
-          if Keyword.get(opts, :retry_unknown_errors) do
-            HTTPoison.Retry.next_attempt(attempt_fn, opts)
-          else
-            response
-          end
-        # OK conditions
-        {:ok, %HTTPoison.Response{status_code: 500}} ->
-          HTTPoison.Retry.next_attempt(attempt_fn, opts)
-        {:ok, %HTTPoison.Response{status_code: 404}} = response ->
-          if Keyword.get(opts, :include_404s) do
-            HTTPoison.Retry.next_attempt(attempt_fn, opts)
-          else
-            response
-          end
-        response ->
-          response
-      end
+      HTTPoison.Retry.do_autoretry(fn -> unquote(attempt) end, unquote(opts))
     end
   end
 
-  def next_attempt(attempt, opts) do
-    Process.sleep(opts[:wait])
-    if opts[:max_attempts] == :infinity || opts[:attempt] < opts[:max_attempts] - 1 do
-      opts = Keyword.put(opts, :attempt, opts[:attempt] + 1)
-      autoretry(attempt.(), opts)
-    else
-      attempt.()
+  def do_autoretry(attempt_fn, opts) do
+    opts = default_opts()
+           |> Keyword.merge(Application.get_all_env(:httpoison_retry))
+           |> Keyword.merge(opts)
+    do_autoretry(attempt_fn, 1, opts)
+  end
+
+  defp do_autoretry(attempt_fn, attempt, opts) do
+    case attempt_fn.() do
+      # Error conditions
+      response = {:error, %HTTPoison.Error{id: nil, reason: reason}} ->
+        if reason in opts[:error_reasons] or opts[:retry_unknown_errors] do
+          next_attempt(attempt_fn, attempt, opts)
+        else
+          response
+        end
+
+      # OK conditions
+      response = {:ok, %HTTPoison.Response{status_code: status_code}} ->
+        if status_code in opts[:status_codes] do
+          next_attempt(attempt_fn, attempt, opts)
+        else
+          response
+        end
+
+      response ->
+        response
     end
   end
+
+  defp next_attempt(attempt_fn, attempt, opts) do
+    Process.sleep(opts[:wait])
+    if opts[:max_attempts] == :infinity || attempt < opts[:max_attempts] - 1 do
+      do_autoretry(attempt_fn, attempt + 1, opts)
+    else
+      attempt_fn.()
+    end
+  end
+
+  defp default_opts(), do: [
+    max_attempts: @max_attempts,
+    wait: @reattempt_wait,
+    # Rename retry_on_all_errors?
+    retry_unknown_errors: false,
+    error_reasons: [:nxdomain, :timeout, :closed],
+    status_codes: [500],
+  ]
 end
