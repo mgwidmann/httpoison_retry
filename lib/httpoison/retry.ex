@@ -16,7 +16,8 @@ defmodule HTTPoison.Retry do
       HTTPoison.get("https://www.example.com")
       # Will retry #{@max_attempts} times waiting #{@reattempt_wait / 1_000}s between each before returning
       # Note: below is the same as the defaults
-      |> autoretry(max_attempts: #{@max_attempts}, wait: #{@reattempt_wait}, include_404s: false, retry_unknown_errors: false)
+      |> autoretry(max_attempts: #{@max_attempts}, wait: #{@reattempt_wait}, status_codes: [500], retry_unknown_errors: false,
+                   error_reasons: [:nxdomain, :timeout, :closed])
       # Your function which will handle the response after success or the 5 failed retries
       |> handle_response()
 
