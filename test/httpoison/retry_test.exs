@@ -69,7 +69,7 @@ defmodule HTTPoison.RetryTest do
       Agent.update agent, fn(i) -> i + 1 end
       {:ok, %HTTPoison.Response{status_code: 404}}
     end
-    assert {:ok, %HTTPoison.Response{status_code: 404}} = autoretry(request.(), include_404s: true)
+    assert {:ok, %HTTPoison.Response{status_code: 404}} = autoretry(request.(), status_codes: [500, 404])
     assert 5 = Agent.get(agent, &(&1))
   end
 

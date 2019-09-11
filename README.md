@@ -28,7 +28,8 @@ HTTPoison.get("https://www.example.com")
 # Will retry 5 times waiting 15s between each before returning. Therefore, your process
 # could end up waiting up to 75 seconds (plus the request time) on the line below
 # Note: below is the same as the defaults
-|> autoretry(max_attempts: 5, wait: 15_000, include_404s: false, retry_unknown_errors: false)
+|> autoretry(max_attempts: 5, wait: 15_000, status_codes: [500], retry_unknown_errors: false,
+             error_reasons: [:nxdomain, :timeout, :closed])
 # Your function which will handle the response after success or failed retry
 |> handle_response()
 ```
