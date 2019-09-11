@@ -65,6 +65,7 @@ defmodule HTTPoison.Retry do
   defp retry?({:ok, %HTTPoison.Response{status_code: status_code}}, opts) do
     status_code in opts[:status_codes]
   end
+  defp retry?(_, _), do: false
 
   defp next_attempt?(attempt, opts) do
     opts[:max_attempts] == :infinity or attempt < opts[:max_attempts]
