@@ -70,8 +70,8 @@ defmodule HTTPoison.Retry do
     opts[:max_attempts] == :infinity or attempt < opts[:max_attempts]
   end
 
-  def wait(n, _) when is_integer(n), do: Process.sleep(n)
-  def wait(:exponential, attempt) do
+  defp wait(n, _) when is_integer(n), do: Process.sleep(n)
+  defp wait(:exponential, attempt) do
     # This has the potential to sleep for very long times, and should be
     # capped, or the maximum should be controllable
     Process.sleep(:random.uniform(1 <<< attempt) * 1000)
