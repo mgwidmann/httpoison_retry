@@ -23,7 +23,7 @@ defmodule HTTPoison.Retry do
 
   ### Gotcha
 
-  Don't forget that the `autoretry/2` call could take a substaintial amount of time to complete. That means usage in the following areas are potential problems:
+  Don't forget that the `autoretry/2` call could take a substantial amount of time to complete. That means usage in the following areas are potential problems:
 
     * Within a plug/phoenix request
     * Within any `GenServer` process
@@ -31,7 +31,7 @@ defmodule HTTPoison.Retry do
     * Any Task/Agent call that has a timeout period (i.e. `Task.await/1`)
       * Same reason as `GenServer`s
     * Tests
-      * Tests should not be making live HTTP calls anyhow, but if they do this could potentially go over the default 60 seconds in ExUnit.
+      * Tests should not be making live HTTP calls anyhow, but if they do this could potentially go over the default 60 seconds in ExUnit
   """
   defmacro autoretry(attempt, opts \\ []) do
     quote location: :keep, generated: true do
@@ -40,47 +40,38 @@ defmodule HTTPoison.Retry do
   end
 
   def do_autoretry(attempt_fn, opts) do
+    # Instead of configuring with application env, make defaults overridable
+    # with `use`? If it happened that multiple apps want to use this and also
+    # use custom defaults, they'd be disappointed to find out that their
+    # configurations conflict.
     opts = default_opts()
            |> Keyword.merge(Application.get_all_env(:httpoison_retry))
            |> Keyword.merge(opts)
     do_autoretry(attempt_fn, 1, opts)
   end
-
   defp do_autoretry(attempt_fn, attempt, opts) do
-    case attempt_fn.() do
-      # Error conditions
-      response = {:error, %HTTPoison.Error{id: nil, reason: reason}} ->
-        if reason in opts[:error_reasons] or opts[:retry_unknown_errors] do
-          next_attempt(attempt_fn, attempt, opts)
-        else
-          response
-        end
-
-      # OK conditions
-      response = {:ok, %HTTPoison.Response{status_code: status_code}} ->
-        if status_code in opts[:status_codes] do
-          next_attempt(attempt_fn, attempt, opts)
-        else
-          response
-        end
-
-      response ->
-        response
-    end
-  end
-
-  defp next_attempt(attempt_fn, attempt, opts) do
-    do_wait(opts[:wait], attempt)
-
-    if opts[:max_attempts] == :infinity || attempt < opts[:max_attempts] - 1 do
+    response = attempt_fn.()
+    if retry?(response, opts) and next_attempt?(attempt, opts) do
+      wait(opts[:wait], attempt)
       do_autoretry(attempt_fn, attempt + 1, opts)
     else
-      attempt_fn.()
+      response
     end
   end
 
-  def do_wait(n, _) when is_integer(n), do: Process.sleep(n)
-  def do_wait(:exponential, attempt) do
+  defp retry?({:error, %HTTPoison.Error{id: nil, reason: reason}}, opts) do
+    reason in opts[:error_reasons] or opts[:retry_unknown_errors]
+  end
+  defp retry?({:ok, %HTTPoison.Response{status_code: status_code}}, opts) do
+    status_code in opts[:status_codes]
+  end
+
+  defp next_attempt?(attempt, opts) do
+    opts[:max_attempts] == :infinity or attempt < opts[:max_attempts]
+  end
+
+  def wait(n, _) when is_integer(n), do: Process.sleep(n)
+  def wait(:exponential, attempt) do
     # This has the potential to sleep for very long times, and should be
     # capped, or the maximum should be controllable
     Process.sleep(:random.uniform(1 <<< attempt) * 1000)
